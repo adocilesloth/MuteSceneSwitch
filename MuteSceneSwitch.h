@@ -31,3 +31,4 @@ extern "C" __declspec(dllexport) void OnStartStream();
 extern "C" __declspec(dllexport) void OnStopStream();
 
 extern "C" __declspec(dllexport) void OnDesktopVolumeChanged();
+extern "C" __declspec(dllexport) void OnMicVolumeChanged();

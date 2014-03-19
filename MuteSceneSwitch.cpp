@@ -23,6 +23,8 @@ using namespace std;
 
 ifstream settings;
 
+int tim = 250;
+
 bool enabled;
 bool stream;
 bool olddeskmuted;
@@ -32,6 +34,10 @@ bool force;
 bool scene;
 string suffix;
 wstring oldscene;
+
+int lasttime;
+bool lastswitchondesk;
+bool mutescene;
 //config popout stuff
 HINSTANCE   hInstance;
 
@@ -152,9 +158,9 @@ switch(message)
 			force = SendMessage(GetDlgItem(hWnd, IDC_FORCE), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			scene = SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			
-			string path = OBSGetPluginDataPath().CreateUTF8String();
+			wstring path = OBSGetPluginDataPath().Array();
 			wofstream create;
-			create.open(path + "\\mutesceneswitch.ini");
+			create.open(path + L"\\mutesceneswitch.ini");
 			create << enabled << endl;
 
 			if(!bdesk && bmic)
@@ -348,12 +354,12 @@ void ConfigPlugin(HWND hWnd)
 
 bool LoadPlugin()
 {
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	settings.open(path + "\\mutesceneswitch.ini");
+	wstring path = OBSGetPluginDataPath().Array();
+	settings.open(path + L"\\mutesceneswitch.ini");
 
 	if (!settings.is_open())
 	{
-		ofstream create(path + "\\mutesceneswitch.ini");
+		ofstream create(path + L"\\mutesceneswitch.ini");
 		create << 1 << endl;	//on/off
 		create << 0 << endl;	//0 is desktop, 1 is mic, 2 is both
 		create << 0 << endl;	//0 is suffix, 1 is scene
@@ -380,7 +386,9 @@ bool LoadPlugin()
 	olddeskmuted = OBSGetDesktopMuted();
 	oldmicmuted = OBSGetMicMuted();
 	oldscene = OBSGetSceneName();
-	AppWarning(TEXT("MuteSceneSwitch Loaded"));
+	lasttime = OSGetTime();
+	lastswitchondesk = true;
+
 	return true;
 }
 
@@ -437,9 +445,60 @@ void OnDesktopVolumeChanged()
 	{
 		return;
 	}
-	if(trigger == 2 && OBSGetMicMuted() == 0)	//break if double trigger and mic is not muted
+	if(trigger == 2 && OBSGetMicMuted() == 0 && (OSGetTime() - lasttime) >= tim)	//break if double trigger and mic is not muted
 	{
 		olddeskmuted = OBSGetDesktopMuted();
+		return;
+	}
+
+	if(trigger == 2 && !lastswitchondesk && (OSGetTime() - lasttime) < tim)
+	{
+		return;
+	}
+
+	if((OSGetTime() - lasttime) < tim)
+	{
+		OBSToggleDesktopMute();
+		if(force && trigger != 2)
+		{
+			if(OBSGetDesktopMuted())
+			{
+				if(OBSGetMicMuted() != OBSGetDesktopMuted())
+				{
+					OBSToggleMicMute();
+				}
+			}
+			else
+			{
+				if(OBSGetMicMuted() == OBSGetDesktopMuted())
+				{
+					OBSToggleMicMute();
+				}
+			}
+		}
+		if(lastswitchondesk && trigger == 2)
+		{
+			Sleep(tim);
+			if(OBSGetDesktopMuted())
+			{
+				if(OBSGetMicMuted() == OBSGetDesktopMuted())
+				{
+					OBSToggleMicMute();
+				}
+			}
+			else
+			{
+				if(OBSGetMicMuted() != OBSGetDesktopMuted())
+				{
+					OBSToggleMicMute();
+				}
+			}
+			if(mutescene)
+			{
+				OBSToggleMicMute();
+			}
+		}
+		lasttime -= (tim + 1);
 		return;
 	}
 
@@ -487,6 +546,9 @@ void OnDesktopVolumeChanged()
 	}
 
 	olddeskmuted = OBSGetDesktopMuted();
+	lasttime = OSGetTime();
+	lastswitchondesk = true;
+	mutescene = OBSGetDesktopMuted();
 
 	return;
 }
@@ -517,9 +579,57 @@ void OnMicVolumeChanged()
 	{
 		return;
 	}
-	if(trigger == 2 && OBSGetDesktopMuted() == 0)	//break if double trigger and desk is not muted
+	if(trigger == 2 && OBSGetDesktopMuted() == 0 && (OSGetTime() - lasttime) >= tim)	//break if double trigger and desk is not muted
 	{
 		oldmicmuted = OBSGetMicMuted();
+		return;
+	}
+
+	if(trigger == 2 && lastswitchondesk && (OSGetTime() - lasttime) < tim)
+	{
+		return;
+	}
+
+	if((OSGetTime() - lasttime) < tim)
+	{
+		OBSToggleMicMute();
+		bool shouldbe = OBSGetMicMuted();
+		if(force && trigger != 2)
+		{
+			if(OBSGetMicMuted())
+			{
+				if(OBSGetDesktopMuted() == OBSGetMicMuted())
+				{
+					OBSToggleDesktopMute();
+				}
+			}
+			else
+			{
+				if(OBSGetDesktopMuted() != OBSGetMicMuted())
+				{
+					OBSToggleDesktopMute();
+				}
+			}
+		}
+		if(!lastswitchondesk && trigger == 2)
+		{
+			Sleep(tim);
+			if(OBSGetMicMuted())
+			{
+				if(OBSGetDesktopMuted() != OBSGetMicMuted())
+				{
+					OBSToggleDesktopMute();
+				}
+			}
+			else if(!OBSGetMicMuted())
+			{
+				if(OBSGetDesktopMuted() == OBSGetMicMuted())
+				{
+					OBSToggleDesktopMute();
+				}
+			}
+		}
+		lasttime -= (tim + 1);
 		return;
 	}
 
@@ -567,6 +677,9 @@ void OnMicVolumeChanged()
 	}
 
 	oldmicmuted = OBSGetMicMuted();
+	lasttime = OSGetTime();
+	lastswitchondesk = false;
+	mutescene = OBSGetMicMuted();
 
 	return;
 }

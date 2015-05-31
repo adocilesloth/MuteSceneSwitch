@@ -90,18 +90,28 @@ switch(message)
 			SendMessage(GetDlgItem(hWnd, IDC_MUTE), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_HIDE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 		}
 		else if(scene == 1)
 		{
 			SendMessage(GetDlgItem(hWnd, IDC_MUTE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_HIDE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 		}
-		else
+		else if(scene == 2)
 		{
 			SendMessage(GetDlgItem(hWnd, IDC_MUTE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 			SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_HIDE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+		}
+		else if(scene == 3)
+		{
+			SendMessage(GetDlgItem(hWnd, IDC_MUTE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_HIDE), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
 		}
 
 		if(wsuff.length() != 0)
@@ -118,6 +128,7 @@ switch(message)
 			EnableWindow(GetDlgItem(hWnd, IDC_MUTE), true);
 			EnableWindow(GetDlgItem(hWnd, IDC_AFK), true);
 			EnableWindow(GetDlgItem(hWnd, IDC_SCENE), true);
+			EnableWindow(GetDlgItem(hWnd, IDC_HIDE), true);
 			EnableWindow(GetDlgItem(hWnd, IDC_SWITCHTXT), true);
 			EnableWindow(GetDlgItem(hWnd, IDC_TOTXT), true);
 			EnableWindow(GetDlgItem(hWnd, IDC_MUTETXT), true);
@@ -150,6 +161,7 @@ switch(message)
 			EnableWindow(GetDlgItem(hWnd, IDC_MUTE), false);
 			EnableWindow(GetDlgItem(hWnd, IDC_AFK), false);
 			EnableWindow(GetDlgItem(hWnd, IDC_SCENE), false);
+			EnableWindow(GetDlgItem(hWnd, IDC_HIDE), false);
 			EnableWindow(GetDlgItem(hWnd, IDC_SWITCHTXT), false);
 			EnableWindow(GetDlgItem(hWnd, IDC_TOTXT), false);
 			EnableWindow(GetDlgItem(hWnd, IDC_MUTETXT), false);
@@ -186,6 +198,8 @@ switch(message)
 			force = SendMessage(GetDlgItem(hWnd, IDC_FORCE), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			bool bsuff = SendMessage(GetDlgItem(hWnd, IDC_MUTE), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			bool bafk = SendMessage(GetDlgItem(hWnd, IDC_AFK), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			bool bscen = SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			bool bhide = SendMessage(GetDlgItem(hWnd, IDC_HIDE), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
 			if(bsuff)
 			{
@@ -195,9 +209,13 @@ switch(message)
 			{
 				scene = 1;
 			}
-			else
+			else if(bscen)
 			{
 				scene = 2;
+			}
+			else if(bhide)
+			{
+				scene = 3;
 			}
 			
 			wstring path = OBSGetPluginDataPath().Array();
@@ -377,6 +395,7 @@ switch(message)
 			}
 
 		case IDC_SCENE:
+		case IDC_HIDE:
 			{
 				bool bmutesrc = SendMessage(GetDlgItem(hWnd, IDC_SCENE), BM_GETCHECK, 0, 0) == BST_CHECKED;
 				if(bmutesrc)
@@ -407,7 +426,7 @@ bool LoadPlugin()
 		ofstream create(path + L"\\mutesceneswitch.ini");
 		create << 1 << endl;	//on/off
 		create << 0 << endl;	//0 is desktop, 1 is mic, 2 is both
-		create << 0 << endl;	//0 is suffix, 1 is scene, 2 is source
+		create << 0 << endl;	//0 is suffix, 1 is scene, 2 is show source, 3 is hide source
 		create << 0 << endl;	//1 is force other mute
 		create << " Mute";
 		create.close();
@@ -575,9 +594,13 @@ void OnDesktopVolumeChanged()
 			wstring scenename = wsuffix;
 			OBSSetScene(scenename.c_str(), 1);
 		}
-		else	//if switching source on
+		else if(scene == 2)	//if switching source on
 		{
 			OBSSetSourceRender(wsuffix.c_str(), true);
+		}
+		else if(scene == 3)	//if switching off source
+		{
+			OBSSetSourceRender(wsuffix.c_str(), false);
 		}
 	}
 	else	//if unmuted
@@ -594,9 +617,13 @@ void OnDesktopVolumeChanged()
 		{
 			OBSSetScene(oldscene.c_str(), 1);
 		}
-		else	//if switching source off
+		else if(scene == 2)	//if switching source off
 		{
 			OBSSetSourceRender(wsuffix.c_str(), false);
+		}
+		else if(scene == 3)	//if switching on source
+		{
+			OBSSetSourceRender(wsuffix.c_str(), true);
 		}
 	}
 
@@ -714,9 +741,13 @@ void OnMicVolumeChanged()
 			wstring scenename = wsuffix;
 			OBSSetScene(scenename.c_str(), 1);
 		}
-		else	//if switching source on
+		else if(scene == 2)	//if switching source on
 		{
 			OBSSetSourceRender(wsuffix.c_str(), true);
+		}
+		else if(scene == 3)	//if switching source off
+		{
+			OBSSetSourceRender(wsuffix.c_str(), false);
 		}
 	}
 	else	//if unmuted
@@ -733,9 +764,13 @@ void OnMicVolumeChanged()
 		{
 			OBSSetScene(oldscene.c_str(), 1);
 		}
-		else	//if switching source off
+		else if(scene == 2)	//if switching source off
 		{
 			OBSSetSourceRender(wsuffix.c_str(), false);
+		}
+		else if(scene == 3)	//if switching source on
+		{
+			OBSSetSourceRender(wsuffix.c_str(), true);
 		}
 	}
 
